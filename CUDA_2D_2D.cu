@@ -34,7 +34,6 @@ void printMatrix(long * m_r)
       printf("%ld ", m_r[x]);
   }
 }
-
 //Compare if two matrices are the same
 bool checkResult(long * m_host, long * m_gpu)
 {
@@ -46,7 +45,6 @@ bool checkResult(long * m_host, long * m_gpu)
   }
   return true;
 }
-
 //multiplication of matrices in cpu
 void mulMatrix(long * m_r, long * m1, long * m2)
 {
@@ -64,20 +62,17 @@ void mulMatrix(long * m_r, long * m1, long * m2)
     }
   }
 }
-
 //multiplication of matrices in gpu
-__global__ void mulMatrixGPU1D(long *MatA, long *MatB, long *MatC)
+__global__ void mulMatrixGPU2D(long *MatA, long *MatB, long *MatC)
 {
   unsigned int ix = threadIdx.x + blockIdx.x * blockDim.x;
+  unsigned int iy = threadIdx.y + blockIdx.y * blockDim.y;
 
-  if (ix < N )
+  if (ix < N && iy < N)
   {
     for(int in =0;in<N;in++)
     {
-      for (int iy = 0; iy < N; iy++)
-      {
-        MatC[ix*N+in] += MatA[ix*N+iy] * MatB[iy*N+in];
-      }
+        MatC[ix*N+iy] += MatA[ix*N+in] * MatB[in*N+iy];
     }
   }
 }
@@ -135,17 +130,19 @@ int main(int argc, char **argv)
     SAFE_CALL(cudaMemcpy(d_MatB, h_m2, nBytes, cudaMemcpyHostToDevice), "Error copying d_MatB");
 
     // invoke kernel at host side
-    int dimx =256;
-    dim3 block(dimx, 1);
-    dim3 grid((nx + block.x - 1) / block.x, 1);
+    int dimx = 2;
+    int dimy = 256;
+    dim3 block(dimx, dimy);
+    dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
 
     start_cpu =  chrono::high_resolution_clock::now();
-    mulMatrixGPU1D<<<grid, block>>>(d_MatA, d_MatB, d_MatC);
+    mulMatrixGPU2D<<<grid, block>>>(d_MatA, d_MatB, d_MatC);
     SAFE_CALL(cudaDeviceSynchronize(), "Error executing kernel");
     end_cpu =  chrono::high_resolution_clock::now();
     duration_ms = end_cpu - start_cpu;
 
-    printf("sumMatrixOnGPU1D <<<(%d,%d), (%d,%d)>>> elapsed %f ms\n", grid.x,
+
+    printf("sumMatrixOnGPU2D <<<(%d,%d), (%d,%d)>>> elapsed %f ms\n", grid.x,
            grid.y,
            block.x, block.y, duration_ms.count());
 
@@ -160,11 +157,12 @@ int main(int argc, char **argv)
       printf("They are equal\n");
     else
       printf("They are different\n");
-      
+
     // free device global memory
     SAFE_CALL(cudaFree(d_MatA), "Error freeing memory");
     SAFE_CALL(cudaFree(d_MatB), "Error freeing memory");
     SAFE_CALL(cudaFree(d_MatC), "Error freeing memory");
+
 
     // free host memory
     free(h_m1);

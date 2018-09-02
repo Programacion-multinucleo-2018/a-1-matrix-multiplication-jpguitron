@@ -8,6 +8,7 @@ using namespace std;
 
 #define N 1000
 
+//Fill the matrix with natural numbers starting with 0 (row major order)
 void fillMatrix(long * matrix)
 {
   int i;
@@ -18,6 +19,7 @@ void fillMatrix(long * matrix)
   }
 }
 
+//Print the matrix
 void printMatrix(long * m_r)
 {
   int size = N*N;
@@ -33,6 +35,7 @@ void printMatrix(long * m_r)
   }
 }
 
+//Compare if two matrices are the same
 bool checkResult(long * m_host, long * m_gpu)
 {
   int size = N*N;
@@ -44,6 +47,7 @@ bool checkResult(long * m_host, long * m_gpu)
   return true;
 }
 
+//multiplication of matrices in cpu
 void mulMatrix(long * m_r, long * m1, long * m2)
 {
   int x;
@@ -61,20 +65,17 @@ void mulMatrix(long * m_r, long * m1, long * m2)
   }
 }
 
-__global__ void mulMatrixGPU2D(long *MatA, long *MatB, long *MatC)
+//multiplication of matrices in gpu
+__global__ void mulMatrixGPU2D1D(long *MatA, long *MatB, long *MatC)
 {
   unsigned int ix = threadIdx.x + blockIdx.x * blockDim.x;
-  unsigned int iy = threadIdx.y + blockIdx.y * blockDim.y;
-  unsigned int idx = iy * N + ix;
+  unsigned int iy = blockIdx.y;
 
   if (ix < N && iy < N)
   {
-    for(int n =0;n<N;n++)
+    for(int in =0;in<N;in++)
     {
-      for (int y = 0; y < N; y++)
-      {
-        MatC[idx*N+n] += MatA[idx*N+y] * MatB[y*N+n];
-      }
+        MatC[ix*N+iy] += MatA[ix*N+in] * MatB[in*N+iy];
     }
   }
 }
@@ -132,19 +133,17 @@ int main(int argc, char **argv)
     SAFE_CALL(cudaMemcpy(d_MatB, h_m2, nBytes, cudaMemcpyHostToDevice), "Error copying d_MatB");
 
     // invoke kernel at host side
-    int dimx = 32;
-    int dimy = 32;
-    dim3 block(dimx, dimy);
-    dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
+    int dimx =256;
+    dim3 block(dimx, 1);
+    dim3 grid((nx + block.x - 1) / block.x, ny);
 
     start_cpu =  chrono::high_resolution_clock::now();
-    mulMatrixGPU2D<<<grid, block>>>(d_MatA, d_MatB, d_MatC);
+    mulMatrixGPU2D1D<<<grid, block>>>(d_MatA, d_MatB, d_MatC);
     SAFE_CALL(cudaDeviceSynchronize(), "Error executing kernel");
     end_cpu =  chrono::high_resolution_clock::now();
     duration_ms = end_cpu - start_cpu;
 
-
-    printf("sumMatrixOnGPU1D <<<(%d,%d), (%d,%d)>>> elapsed %f ms\n", grid.x,
+    printf("sumMatrixOnGPU2D1D   <<<(%d,%d), (%d,%d)>>> elapsed %f ms\n", grid.x,
            grid.y,
            block.x, block.y, duration_ms.count());
 
@@ -156,14 +155,15 @@ int main(int argc, char **argv)
 
     // Compare results
     if(checkResult(hostRef, gpuRef))
-      printf("Son iguales\n");
+      printf("They are equal\n");
     else
-      printf("Son diferentes\n");
+      printf("They are different\n");
 
     // free device global memory
     SAFE_CALL(cudaFree(d_MatA), "Error freeing memory");
     SAFE_CALL(cudaFree(d_MatB), "Error freeing memory");
     SAFE_CALL(cudaFree(d_MatC), "Error freeing memory");
+
 
     // free host memory
     free(h_m1);

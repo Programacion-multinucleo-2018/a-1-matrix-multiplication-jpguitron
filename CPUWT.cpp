@@ -12,6 +12,7 @@
 
 using namespace std;
 
+//Fill the matrix with natural numbers starting with 0 (row major order)
 void fillMatrix(long * matrix)
 {
   int i;
@@ -22,6 +23,7 @@ void fillMatrix(long * matrix)
   }
 }
 
+//Print the matrix
 void printMatrix(long * m_r)
 {
   int size = N*N;
@@ -36,6 +38,8 @@ void printMatrix(long * m_r)
   }
 }
 
+
+//multiplication of matrices in cpu with threads
 void mulMatrix(long * m_r, long * m1, long * m2)
 {
   int threadID, totalThreads;
