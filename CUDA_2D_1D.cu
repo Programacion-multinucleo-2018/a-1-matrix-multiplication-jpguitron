@@ -70,13 +70,15 @@ __global__ void mulMatrixGPU2D1D(long *MatA, long *MatB, long *MatC)
 {
   unsigned int ix = threadIdx.x + blockIdx.x * blockDim.x;
   unsigned int iy = blockIdx.y;
+  long sum = 0;
 
   if (ix < N && iy < N)
   {
     for(int in =0;in<N;in++)
     {
-        MatC[ix*N+iy] += MatA[ix*N+in] * MatB[in*N+iy];
+        sum += MatA[ix*N+in] * MatB[in*N+iy];
     }
+    MatC[ix*N+iy] =sum;
   }
 }
 

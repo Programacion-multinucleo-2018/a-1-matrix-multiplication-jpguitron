@@ -72,12 +72,15 @@ __global__ void mulMatrixGPU1D(long *MatA, long *MatB, long *MatC)
 
   if (ix < N )
   {
+
     for(int in =0;in<N;in++)
     {
+      long sum =0;
       for (int iy = 0; iy < N; iy++)
       {
-        MatC[ix*N+in] += MatA[ix*N+iy] * MatB[iy*N+in];
+        sum += MatA[ix*N+iy] * MatB[iy*N+in];
       }
+      MatC[ix*N+in] = sum;
     }
   }
 }
@@ -160,7 +163,7 @@ int main(int argc, char **argv)
       printf("They are equal\n");
     else
       printf("They are different\n");
-      
+
     // free device global memory
     SAFE_CALL(cudaFree(d_MatA), "Error freeing memory");
     SAFE_CALL(cudaFree(d_MatB), "Error freeing memory");
